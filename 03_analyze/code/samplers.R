@@ -1,5 +1,5 @@
 #### utils ####
-compute_kernel_mat <- function(X, l, eta=1){
+compute_kernel_mat <- function(X, l, eta){
   n <- nrow(X)
   base_mat <- matrix(0, nrow=n, ncol=n)
   for(i in 1:n){
@@ -22,59 +22,60 @@ get_logdet <- function(K){
 }
 
 
+chol_solve <- function(A) {
+  L    <- chol(A)
+  invA <- chol2inv(L)
+  return(invA)
+}
+
+
 #### sampler functions ####
 
-# sampler of l_g and tau_g
-# renew_l <- function(l, GP_O, GP_R, X_O, X_R, sig_hyper, alpha_l, beta_l){
-#   # sample from proposal distribution
-#   l_new <- truncnorm::rtruncnorm(n=1, a=0, sd=sig_hyper)
-#   
-#   small_mat_O <- 1e-05 * diag(length(GP_O))
-#   small_mat_R <- 1e-05 * diag(length(GP_R))
-#   
-#   K_g_O     <- compute_kernel_mat(X_O, l)     + small_mat_O
-#   K_g_R     <- compute_kernel_mat(X_R, l)     + small_mat_R
-#   K_g_O_new <- compute_kernel_mat(X_O, l_new) + small_mat_O
-#   K_g_R_new <- compute_kernel_mat(X_R, l_new) + small_mat_R
-#   
-#   log_like <- -1/2 * (get_logdet(K_g_O) + t(GP_O) %*% solve(K_g_O) %*% (GP_O)) +
-#     -1/2 * (get_logdet(K_g_R) + t(GP_R) %*% solve(K_g_R) %*% (GP_R))
-#   log_like_new <- -1/2 * (get_logdet(K_g_O_new) + t(GP_O) %*% solve(K_g_O_new) %*% (GP_O)) +
-#     -1/2 * (get_logdet(K_g_R_new) + t(GP_R) %*% solve(K_g_R_new) %*% (GP_R))
-# 
-#   # compute log ratio
-#   log_r <- log_like_new - log_like                           # likelihood
-#       + log(dgamma(l_new, alpha_l, beta_l))                  # prior
-#       - log(dgamma(l, alpha_l, beta_l))
-#       - log(truncnorm::dtruncnorm(l_new, a=0, sd=sig_hyper)) 
-#       + log(truncnorm::dtruncnorm(l, a=0, sd=sig_hyper))     # proposal 
-# 
-#   log_U <- log(runif(n=1))
-#   if(log_r > log_U){
-#     l <- l_new
-#   }
-#      
-#   return(l)
-# }
-
-renew_l <- function(l, GP, X, sig_hyper, alpha_l, beta_l){
+renew_eta <- function(GP, eta, X, l, sig_eta, alpha_eta, beta_eta){
   # sample from proposal distribution
-  l_new <- truncnorm::rtruncnorm(n=1, a=0, sd=sig_hyper)
+  eta_new <- truncnorm::rtruncnorm(n=1, a=0, mean = eta, sd=sig_eta)
+  
+  small_mat <- 1e-05 * diag(length(GP))
+  K     <- compute_kernel_mat(X, l, eta) + small_mat
+  K_new <- compute_kernel_mat(X, l, eta_new) + small_mat
+  
+  log_like     <- -1/2 * (get_logdet(K) + t(GP) %*% chol_solve(K) %*% GP)
+  log_like_new <- -1/2 * (get_logdet(K_new) + t(GP) %*% chol_solve(K_new) %*% GP)
+  
+  # compute log ratio
+  log_r <- log_like_new - log_like                       # likelihood
+  + log(dgamma(eta_new, alpha_eta, beta_eta))                  # prior
+  - log(dgamma(eta, alpha_eta, beta_eta))
+  - log(truncnorm::dtruncnorm(eta_new, a=0, mean = eta, sd=sig_eta)) 
+  + log(truncnorm::dtruncnorm(eta, a=0, mean = eta, sd=sig_eta))     # proposal 
+  
+  log_U <- log(runif(n=1))
+  if(log_r > log_U){
+    eta <- eta_new
+  }
+  
+  return(eta)
+}
+
+
+renew_l <- function(l, GP, X, eta, sig_hyper, alpha_l, beta_l){
+  # sample from proposal distribution
+  l_new <- truncnorm::rtruncnorm(n=1, a=0, mean = l, sd=sig_hyper)
   
   small_mat <- 1e-05 * diag(length(GP))
   
-  K     <- compute_kernel_mat(X, l) + small_mat
-  K_new <- compute_kernel_mat(X, l_new) + small_mat
+  K     <- compute_kernel_mat(X, l, eta) + small_mat
+  K_new <- compute_kernel_mat(X, l_new, eta) + small_mat
   
-  log_like     <- -1/2 * (get_logdet(K) + t(GP) %*% solve(K) %*% GP)
-  log_like_new <- -1/2 * (get_logdet(K_new) + t(GP) %*% solve(K_new) %*% GP)
+  log_like     <- -1/2 * (get_logdet(K) + t(GP) %*% chol_solve(K) %*% GP)
+  log_like_new <- -1/2 * (get_logdet(K_new) + t(GP) %*% chol_solve(K_new) %*% GP)
   
   # compute log ratio
   log_r <- log_like_new - log_like                           # likelihood
           + log(dgamma(l_new, alpha_l, beta_l))                  # prior
           - log(dgamma(l, alpha_l, beta_l))
-          - log(truncnorm::dtruncnorm(l_new, a=0, sd=sig_hyper)) 
-          + log(truncnorm::dtruncnorm(l, a=0, sd=sig_hyper))     # proposal 
+          - log(truncnorm::dtruncnorm(l_new, a=0, mean = l, sd=sig_hyper)) 
+          + log(truncnorm::dtruncnorm(l, a=0, mean = l, sd=sig_hyper))     # proposal 
   
   log_U <- log(runif(n=1))
   if(log_r > log_U){
@@ -85,62 +86,31 @@ renew_l <- function(l, GP, X, sig_hyper, alpha_l, beta_l){
 }
 
 
-# 
-# renew_g <- function(X, Y, Z, l, sig, HTE){
-#   n <- nrow(X)
-#   
-#   small_mat <- 1e-05 * diag(n)
-#   K_g     <- compute_kernel_mat(X, l) + small_mat
-#   
-#   A <- 1/sig * diag(n) + solve(K_g)
-#   B <- (1/sig * diag(n)) %*% (Y - Z * HTE)
-#   
-#   g <- mvtnorm::rmvnorm(n=1, mean = solve(A+small_mat)%*%B, sigma=solve(A)) |> 
-#     as.vector()
-#   return(g)
-# }
 
-
-renew_g <- function(X, Y, Z, l, sig, tau, b_O, Obs_flag){
+renew_g <- function(X, Y, Z, l, eta, sig, tau, b_O, Obs_flag){
   n <- nrow(X)
   
   small_mat <- 1e-05 * diag(n)
-  K_g <- compute_kernel_mat(X, l) + small_mat
+  K_g <- compute_kernel_mat(X, l, eta) + small_mat
   
   HTE <- tau
-  tau[Obs_flag] <- tau[Obs_flag] + b_O
+  HTE[Obs_flag] <- HTE[Obs_flag] + b_O
   
-  A <- 1/sig * diag(n) + solve(K_g)
+  A <- 1/sig * diag(n) + chol_solve(K_g)
   B <- (1/sig * diag(n)) %*% (Y - Z * HTE)
   
-  g <- mvtnorm::rmvnorm(n=1, mean = solve(A+small_mat)%*%B, sigma=solve(A)) |> 
+  g <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
   return(g)
 }
 
 
-# renew_tau <- function(X, Y, Z, l, sig, g, b=0){
-#   n <- nrow(X)
-#   
-#   small_mat <- 1e-05 * diag(n)
-#   K_tau     <- compute_kernel_mat(X, l) + small_mat
-#   
-#   Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
-#   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
-#   
-#   A <- Z_left %*% (1/sig * diag(n)) %*% Z_right + solve(K_tau)
-#   B <- Z_left %*% (1/sig * diag(n)) %*% (Y - g - Z * b)
-#   
-#   g <- mvtnorm::rmvnorm(n=1, mean = solve(A+small_mat)%*%B, sigma=solve(A)) |> 
-#     as.vector()
-#   return(g)
-#}
 
-renew_tau <- function(X, Y, Z, l, sig, g, b_O, Obs_flag){
+renew_tau <- function(X, Y, Z, l, eta, sig, g, b_O, Obs_flag){
   n <- nrow(X)
   
   small_mat <- 1e-05 * diag(n)
-  K_tau <- compute_kernel_mat(X, l) + small_mat
+  K_tau <- compute_kernel_mat(X, l, eta) + small_mat
   
   b <- rep(0, length(Y))
   b[Obs_flag] <- b[Obs_flag] + b_O
@@ -148,26 +118,26 @@ renew_tau <- function(X, Y, Z, l, sig, g, b_O, Obs_flag){
   Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
   
-  A <- Z_left %*% (1/sig * diag(n)) %*% Z_right + solve(K_tau)
-  B <- Z_left %*% (1/sig * diag(n)) %*% (Y - g - Z * b)
+  A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
+  B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * b)
   
-  g <- mvtnorm::rmvnorm(n=1, mean = solve(A+small_mat)%*%B, sigma=solve(A)) |> 
+  tau <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
-  return(g)
+  return(tau)
 }
 
 
-renew_l_b <- function(l, GP_O,  X_O, sig_hyper, alpha_l, beta_l){
+renew_l_b <- function(l, GP_O,  X_O, eta, sig_hyper, alpha_l, beta_l){
   # sample from proposal distribution
-  l_new <- truncnorm::rtruncnorm(n=1, a=0, sd=sig_hyper)
+  l_new <- truncnorm::rtruncnorm(n=1, a=0, mean=l, sd=sig_hyper)
   
   small_mat_O <- 1e-05 * diag(length(GP_O))
   
-  K_g_O     <- compute_kernel_mat(X_O, l)     + small_mat_O
-  K_g_O_new <- compute_kernel_mat(X_O, l_new) + small_mat_O
+  K_g_O     <- compute_kernel_mat(X_O, l, eta)     + small_mat_O
+  K_g_O_new <- compute_kernel_mat(X_O, l_new, eta) + small_mat_O
   
-  log_like <- -1/2 * (get_logdet(K_g_O) + t(GP_O) %*% solve(K_g_O) %*% (GP_O))
-  log_like_new <- -1/2 * (get_logdet(K_g_O_new) + t(GP_O) %*% solve(K_g_O_new) %*% (GP_O))
+  log_like <- -1/2 * (get_logdet(K_g_O) + t(GP_O) %*% chol_solve(K_g_O) %*% (GP_O))
+  log_like_new <- -1/2 * (get_logdet(K_g_O_new) + t(GP_O) %*% chol_solve(K_g_O_new) %*% (GP_O))
   # compute log ratio
   log_r <- log_like_new - log_like                           # likelihood
   + log(dgamma(l_new, alpha_l, beta_l))                  # prior
@@ -184,19 +154,32 @@ renew_l_b <- function(l, GP_O,  X_O, sig_hyper, alpha_l, beta_l){
 }
 
 
-renew_b <- function(X, Y, Z, l, sig, g, tau){
+renew_b <- function(X, Y, Z, l, eta, sig, g, tau){
   n <- nrow(X)
   
   small_mat <- 1e-05 * diag(n)
-  K_tau     <- compute_kernel_mat(X, l) + small_mat
+  K_tau     <- compute_kernel_mat(X, l, eta) + small_mat
   
   Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
   
-  A <- Z_left %*% (1/sig * diag(n)) %*% Z_right + solve(K_tau)
-  B <- Z_left %*% (1/sig * diag(n)) %*% (Y - g - Z * tau)
+  A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
+  B <- Z_left * (1/sig * diag(n)) * (Y - g - Z * tau)
   
-  g <- mvtnorm::rmvnorm(n=1, mean = solve(A+small_mat)%*%B, sigma=solve(A)) |> 
+  b <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
-  return(g)
+  return(b)
+}
+
+
+renew_sig <- function(X, Y, Z, g, tau, b_O, Obs_flag, nu_0=10, sig_0=10){
+  n <- length(Y)
+  nu_new <- nu_0 + n
+  
+  HTE <- tau 
+  HTE[Obs_flag] <-  HTE[Obs_flag] + b_O
+  
+  ss_n <- nu_0 * sig_0 + sum((Y - g - HTE*Z)^2)
+  sig <- 1/rgamma(n = 1, nu_new/2, ss_n/2)
+  return(sig)
 }
