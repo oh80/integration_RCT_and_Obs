@@ -3,14 +3,15 @@ source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
   # settings
-  data_name <- "1d_0531_1.obj"
+  Date <- "0602"
+  data_name <- "1d_n150_1.obj"
   seed    <- 42
   iter    <- 10
   burn_in <- 5
   desctiption <- ""
   
   # read data
-  data_path <- here::here("01_data", "data", data_name)
+  data_path <- here::here("01_data", "data", Date, data_name)
   data <- readRDS(data_path)
   
   X  <- data$X

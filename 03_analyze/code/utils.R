@@ -1,5 +1,5 @@
 extract_file_name <- function(path){
-  file_name <- sub(".*01_data/data/", "", path) 
+  file_name <- sub(".*01_data/data/\\d{4}/", "", path)
   file_name <- sub(".obj", "", file_name)
   return(file_name)
 }

@@ -3,9 +3,9 @@ source(functions_path)
 
 main <- function(){
   # settings
-  seed = 111
-  nO <- 400
-  nR <- 150
+  seed = 42
+  nO <- 100
+  nR <- 50
   sig <- 1
   true_CATE = "squared"
   
@@ -15,12 +15,14 @@ main <- function(){
   data <- generate_data(seed, nO, nR, sig, true_CATE)
   
   # add meta information
-  data <- data |> add_meta_info(desctiption=desctiption,
-                                seed=seed, nO=nO, nR=nR,
-                                sig=sig, true_CATE=true_CATE)
+  info <- list(desctiption=desctiption, seed=seed, nO=nO, nR=nR,sig=sig, true_CATE=true_CATE)
+  data$info = info
+  # data <- data |> add_meta_info(desctiption=desctiption,
+  #                               seed=seed, nO=nO, nR=nR,
+  #                               sig=sig, true_CATE=true_CATE)
   
   # save
-  data |> save_data("1d")
+  data |> save_data("1d", sample_size=nO+nR)
 }
 
 
