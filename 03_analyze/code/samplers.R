@@ -164,7 +164,7 @@ renew_b <- function(X, Y, Z, l, eta, sig, g, tau){
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
   
   A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
-  B <- Z_left * (1/sig * diag(n)) * (Y - g - Z * tau)
+  B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * tau)
   
   b <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()

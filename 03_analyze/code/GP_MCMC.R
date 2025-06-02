@@ -1,9 +1,17 @@
 source(here::here("03_analyze", "code", "samplers.R"))
+source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
+  # settings
+  data_name <- "1d_0531_1.obj"
+  seed    <- 42
+  iter    <- 10
+  burn_in <- 5
+  desctiption <- ""
+  
   # read data
-  path <- here::here("01_data", "data", "1d_0531_1.obj")
-  data <- readRDS(path)
+  data_path <- here::here("01_data", "data", data_name)
+  data <- readRDS(data_path)
   
   X  <- data$X
   Y  <- data$Y
@@ -11,8 +19,15 @@ main <- function(){
   ID <- data$ID
   
   # MCMC
-  samples <- run_MCMC(X, Y, Z, ID, iter=100, burn_in=30)
-  return(samples)
+  set.seed(seed)
+  samples <- run_MCMC(X, Y, Z, ID, iter=iter, burn_in=burn_in)
+  
+  # save result
+  data_info    <- data$info
+  analyze_info <- list(seed=seed, iter=iter, burn_in=burn_in, desctiption=desctiption)
+  
+  result <- list(samples=samples, data_info=data_info, analyze_info=analyze_info)
+  result |> save_result("proposal", data_path)
 }
 
 
@@ -90,9 +105,9 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
     tau     <- renew_tau(X, Y, Z, l_tau, eta_tau, sig, g, b_O, Obs_flag)
     
     # b
-    #eta_b <- renew_eta(b_O, eta_b, X_O, l_b, sig_eta, alpha_eta, beta_eta)
-    #l_b <- renew_l_b(l_b, tau[Obs_flag], X_O, eta_b, sig_hyper, alpha_l, beta_l)
-    #b_O <- renew_b(X_O, Y_O, Z_O, l_b, eta_b, sig, g[Obs_flag], tau[Obs_flag])
+    eta_b <- renew_eta(b_O, eta_b, X_O, l_b, sig_eta, alpha_eta, beta_eta)
+    l_b <- renew_l_b(l_b, tau[Obs_flag], X_O, eta_b, sig_hyper, alpha_l, beta_l)
+    b_O <- renew_b(X_O, Y_O, Z_O, l_b, eta_b, sig, g[Obs_flag], tau[Obs_flag])
     
     # sig
     sig <- renew_sig(X, Y, Z, g, tau, b_O, Obs_flag)
@@ -115,7 +130,7 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
       sig_list[j] <- sig
     }
     
-    if(t%%10 == 0){
+    if(t%%50 == 0){
       message = paste0(t, " iter has been done!")
       print(message)
     }
@@ -128,28 +143,5 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   return(samples)
 }
 
-res <- main()
-# 
-# 
-# path <- here::here("01_data", "data", "1d_0531_1.obj")
-# data <- readRDS(path)
-# 
-# tau_est <- apply(res$tau, 2, mean)
-# b_est   <- apply(res$b_O, 2, mean)
-# HTE_est <- tau_est
-# HTE_est[data$ID=="O"] <- HTE_est[data$ID=="O"] +b_est
-# 
-# plot(x=data$Tau, y=HTE_est)
-# 
-# plot(x=data$Tau[data$ID=="O"], y=HTE_est[data$ID=="O"])
-# plot(x=data$Tau[data$ID=="R"], y=HTE_est[data$ID=="R"])
-# hist(res$l_g)
-# hist(res$l_b)
-# 
-# hist(res$l_tau)
-# hist(res$sig)
-# 
-# hist(apply(res$b_O, 2, mean))
-# 
-# plot(data$X, data$Tau)
-# plot(data$X, HTE_est)
+
+main()
