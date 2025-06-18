@@ -183,3 +183,48 @@ renew_sig <- function(X, Y, Z, g, tau, b_O, Obs_flag, nu_0=10, sig_0=10){
   sig <- 1/rgamma(n = 1, nu_new/2, ss_n/2)
   return(sig)
 }
+
+
+#### samplers for multi-task version ####
+
+# K_ORの処理は後で確認
+renew_g_MT <- function(X, Y, Z, l_O, l_R, eta_O, eta_R,
+                       sig, tau, b_O, rho, Obs_flag, RCT_flag){
+  X_O <- X[Obs_flag] |> as.matrix()
+  X_R <- X[RCT_flag] |> as.matrix()
+  
+  # caliculate multi-task kernel matirx
+  n <- nrow(X)
+  n_O <- sum(Obs_flag)
+  n_R <- sum(RCT_flag)
+  
+  K_g_O  <- compute_kernel_mat(X_O, l_O, eta_O)
+  K_g_R  <- compute_kernel_mat(X_R, l_R, eta_R)
+  K_g_RO <- 1/2 * (compute_kernel_mat(X, l_O, eta_O)[1:n_R, (1+n_R):n] + 
+    compute_kernel_mat(X, l_O, eta_O)[1:n_R, (1+n_R):n]) * rho
+  
+  K_g <- matrix(0, nrow = n, ncol = n)
+  K_g[1:n_R, 1:n_R]         <- K_g_R
+  K_g[(n_R+1):n, (n_R+1):n] <- K_g_O
+  K_g[1:n_R, (1+n_R):n]     <- K_g_RO
+  K_g[(1+n_R):n, 1:n_R]     <- t(K_g_RO)
+  
+  B <- matrix(rho, nrow = n, ncol = n)
+  B[1:n_R, 1:n_R] <- 1
+  B[(n_R+1):n, (n_R+1):n] <- 1
+  
+  small_mat <- 1e-05 * diag(n)
+  #K_g <- (K_g * B) + small_mat
+  K_g <- K_g + small_mat
+  
+  # sampling renewed g
+  HTE <- tau
+  HTE[Obs_flag] <- HTE[Obs_flag] + b_O
+  
+  A <- 1/sig * diag(n) + chol_solve(K_g)
+  B <- (1/sig * diag(n)) %*% (Y - Z * HTE)
+  
+  g <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
+    as.vector()
+  return(g)
+}
