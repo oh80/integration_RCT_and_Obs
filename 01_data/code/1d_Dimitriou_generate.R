@@ -3,7 +3,7 @@ source(functions_path)
 
 main <- function(){
   # settings
-  seed = 42
+  seed = 78
   n <- 500
   
   desctiption = ""
@@ -50,10 +50,6 @@ decision_assingment <- function(X, ID){
   return(Z)
 }
 
-true_CATE <- function(x){
-  CATE <- 1+X+X^2
-  return(CATE)
-}
 
 geneate_outcome <- function(X, ID, Z, Tau){
   n <- nrow(X)
@@ -86,6 +82,11 @@ generate_data <- function(seed, n){
   Z <- decision_assingment(X, ID)
   
   # CATE and outcome
+  true_CATE <- function(x){
+    CATE <- 1+X+X^2
+    return(CATE)
+  }
+  
   Tau <- apply(X, 2, true_CATE)
   Y <- geneate_outcome(X, ID, Z, Tau)
   
