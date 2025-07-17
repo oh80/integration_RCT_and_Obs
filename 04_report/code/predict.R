@@ -28,16 +28,19 @@ get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
   num_test_points <- nrow(test_X)
   
   # store object
-  pred_dist_samples <- matrix(NA, nrow=num_samples, ncol=num_test_points)
-  print(num_samples)
-  print(num_test_points)
+  pred_mean_samples <- matrix(NA, nrow=num_samples, ncol=num_test_points)
+  pred_var_samples  <- matrix(NA, nrow=num_samples, ncol=num_test_points)
+  
   # computation pred
   for(i in 1:num_samples){
     small_mat <- 1e-05 * diag(dim(train_X)[1])
     K_train       <- compute_kernel_mat(train_X, l_samples[i], eta_samples[i])
     K_train_test  <- compute_train_test_kernel(train_X, test_X, l_samples[i], eta_samples[i])
+    K_test        <- compute_kernel_mat(test_X, l_samples[i], eta_samples[i])
     
-    try(pred_dist_samples[i,] <- t(K_train_test) %*% chol_solve(K_train+small_mat) %*% tau_samples[i,])
+    try(pred_mean_samples[i,] <- t(K_train_test) %*% chol_solve(K_train+small_mat) %*% tau_samples[i,])
+    pred_cov_mat  <- K_test - t(K_train_test) %*% chol_solve(K_train+small_mat) %*% K_train_test
+    pred_var_samples[i,] <- diag(pred_cov_mat)
     
     if(i%%50==0){
       message <- paste0(i, " iter has been done!")
@@ -45,5 +48,6 @@ get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
     }
   }
   
-  return(pred_dist_samples)
+  output <- list("mean"=pred_mean_samples, "var"=pred_var_samples)
+  return(output)
 }
