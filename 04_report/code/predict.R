@@ -51,3 +51,14 @@ get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
   output <- list("mean"=pred_mean_samples, "var"=pred_var_samples)
   return(output)
 }
+
+
+calc_IC_bound <- function(mean, var){
+  if(var < 0){
+    var <- 1e-5
+  }
+  upper <- qnorm(p=0.975, mean=mean, sd=sqrt(var))
+  lower <- qnorm(p=0.025, mean=mean, sd=sqrt(var))
+  
+  return(c(upper, lower))
+}
