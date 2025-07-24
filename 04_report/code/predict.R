@@ -62,3 +62,34 @@ calc_IC_bound <- function(mean, var){
   
   return(c(upper, lower))
 }
+
+
+
+compute_pred_and_CI <- function(train_data, test_data, samples, method){
+  if(method == "RCT"){
+    idx = c(train_data$ID=="R")
+  }else if(method == "observation"){
+    idx = c(train_data$ID=="O")
+  }else{
+    idx = rep(TRUE, length(train_data$X))
+  }
+  
+  train_X <- train_data$X[idx] |> as.matrix()
+  test_X  <- test_data$X |> as.matrix()
+  
+  pred_dist_samples <- get_pred_dist_samples(samples, train_X, test_X)
+  pred_mean <- apply(pred_dist_samples$mean, 2, mean)
+  pred_var  <- apply(pred_dist_samples$var, 2, mean) + apply(pred_dist_samples$mean, 2, var)
+  
+  CI_upper <- c()
+  CI_lower <- c()
+  
+  for(i in 1:length(pred_mean)){
+    CI_bound <- calc_IC_bound(pred_mean[i], pred_var[i])
+    CI_upper[i] <- CI_bound[1]
+    CI_lower[i] <- CI_bound[2]
+  }
+  
+  result <- list("mean"=pred_mean, "CI_upper"=CI_upper, "CI_lower"=CI_lower)
+  return(result)
+}

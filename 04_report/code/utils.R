@@ -12,7 +12,7 @@ make_res_path <- function(analyze_name, type){
   if(type=="plot"){
     file_name <- paste0(analyze_name,"_plot", ".pdf")
   }else if(type=="metrics"){
-    file_name <- paste0(analyze_name, ".obj")
+    file_name <- paste0(analyze_name, ".csv")
   }
   path <- here::here("04_report", "result", Date, file_name)
   return(path)
@@ -22,4 +22,10 @@ make_res_path <- function(analyze_name, type){
 save_plot <- function(plot, analyze_name){
   path <- make_res_path(analyze_name, type="plot")
   ggplot2::ggsave(path, plot)
+}
+
+
+save_metrics <- function(table, analyze_name){
+  path <- make_res_path(analyze_name, type="metrics")
+  write.csv(table, path)
 }
