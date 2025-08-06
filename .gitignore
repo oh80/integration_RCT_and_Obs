@@ -2,3 +2,10 @@
 .Rhistory
 .RData
 .Ruserdata
+
+# python
+*.pyc
+.python-version
+pyproject.toml
+uv.lock
+/.venv
