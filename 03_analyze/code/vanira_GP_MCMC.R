@@ -1,21 +1,20 @@
 source(here::here("03_analyze", "code", "samplers.R"))
 source(here::here("03_analyze", "code", "utils.R"))
 
-source(here::here("03_analyze", "code", "samplers.R"))
-source(here::here("03_analyze", "code", "utils.R"))
-
 main <- function(){
   # settings
-  Date <- "0602"
-  use_data <- "observation" # RCT or observation or pool
-  data_name <- "1d_n550_1.obj"
+  Date     <- "0807"
+  location <- "02_build" # 01_data or 02_build
+  use_data <- "both" # RCT or observation or both
+  data_name <- "lalonde_train_1.obj"
+  
   seed    <- 42
-  iter    <- 1000
-  burn_in <- 300
+  iter    <- 10
+  burn_in <- 5
   desctiption <- ""
   
   # read data
-  data_path <- here::here("01_data", "data", Date, data_name)
+  data_path <- here::here(location, "data", Date, data_name)
   data <- readRDS(data_path)
   data <- extract_use_data(data, use_data)
   
@@ -28,7 +27,7 @@ main <- function(){
   analyze_info <- list(seed=seed, iter=iter, burn_in=burn_in, desctiption=desctiption)
   
   result <- list(samples=samples, data_info=data_info, analyze_info=analyze_info)
-  result |> save_result(use_data, data_path)
+  result |> save_result(use_data, data_name)
 }
 
 
@@ -39,13 +38,13 @@ extract_use_data <- function(data, use_data){
   ID <- data$ID
   
   if(use_data == "RCT"){
-    data = list("X" = X[ID=="R"], Y = Y[ID=="R"], Z = Z[ID=="R"])
+    data = list("X" = X[ID=="R",], Y = Y[ID=="R"], Z = Z[ID=="R"])
     
   }else if(use_data == "observation"){
-    data = list("X" = X[ID=="O"], Y = Y[ID=="O"], Z = Z[ID=="O"])
+    data = list("X" = X[ID=="O",], Y = Y[ID=="O"], Z = Z[ID=="O"])
     
   }else if(use_data == "both"){
-    next
+    data = data
     
   }else{
     print(use_data, " is not expected.")
@@ -58,9 +57,9 @@ extract_use_data <- function(data, use_data){
 
 run_MCMC <- function(data, iter=1000, burn_in=200){
   # set data
-  X <- data$X |> matrix()
-  Y <- data$Y |> matrix()
-  Z <- data$Z |> matrix()
+  X <- data$X |> as.matrix()
+  Y <- data$Y |> as.matrix()
+  Z <- data$Z |> as.matrix()
   
   n <- length(Y)
   
@@ -78,11 +77,11 @@ run_MCMC <- function(data, iter=1000, burn_in=200){
   sig_list  <- matrix(0, nrow=iter-burn_in)
   
   # initial value
-  l_g   <- 2
-  l_tau <- 2
+  l_g   <- 1
+  l_tau <- 1
   
-  eta_g   <- 3
-  eta_tau <- 3
+  eta_g   <- 1
+  eta_tau <- 1
   
   g      <- rep(1, n)
   tau    <- rep(1, n)
@@ -90,32 +89,32 @@ run_MCMC <- function(data, iter=1000, burn_in=200){
   sig <- 1
   
   # hyper params
-  sig_hyper <- 1
+  sig_hyper <- 0.1
   
-  alpha_l <- 2
-  beta_l  <- 2
+  alpha_l <- 1
+  beta_l  <- 1
   
-  alpha_eta <- 2
-  beta_eta  <- 2
-  sig_eta   <- 1
+  alpha_eta <- 1
+  beta_eta  <- 1
+  sig_eta   <- 0.1
   
-  alpha_sig <- 2
-  beta_sig  <- 2
-  
+  alpha_sig <- 1
+  beta_sig  <- 1
+
   # run mcmc
   for(t in 1:iter){
-    # 
+    # g
     eta_g <- renew_eta(g, eta_g, X, l_g, sig_eta, alpha_eta, beta_eta)
     l_g   <- renew_l(l_g, g, X, eta_g, sig_hyper, alpha_l, beta_l)
-    g     <- renew_g(X, Y, Z, l_g, eta_g, sig, tau, b_O=0, Obs_flag=rep(0, n))
+    g     <- renew_g(X, Y, Z, l_g, eta_g, sig, tau, b_O=0, Obs_flag=rep(FALSE, n))
     
     # tau
     eta_tau <- renew_eta(tau, eta_tau, X, l_tau, sig_eta, alpha_eta, beta_eta)
     l_tau   <- renew_l(l_tau, tau, X, eta_tau, sig_hyper, alpha_l, beta_l)
-    tau     <- renew_tau(X, Y, Z, l_tau, eta_tau, sig, g, b_O=0, Obs_flag=rep(0, n))
+    tau     <- renew_tau(X, Y, Z, l_tau, eta_tau, sig, g, b_O=0, Obs_flag=rep(FALSE, n))
     
     # sig
-    sig <- renew_sig(X, Y, Z, g, tau, b_O=0, Obs_flag=rep(0, n))
+    sig <- renew_sig(X, Y, Z, g, tau, b_O=0, Obs_flag=rep(FALSE, n))
     
     #save
     if(t > burn_in){
@@ -140,6 +139,7 @@ run_MCMC <- function(data, iter=1000, burn_in=200){
   
   # output
   samples <- list("l_g"=l_g_list, "l_tau"=l_tau_list,
+                  "eta_g"=eta_g_list, "eta_tau"=eta_tau_list, 
                   "tau"=tau_list, "g"=g_list, "sig"=sig_list)
   return(samples)
 }

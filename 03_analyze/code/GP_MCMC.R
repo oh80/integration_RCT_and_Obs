@@ -3,15 +3,17 @@ source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
   # settings
-  Date <- "0602"
-  data_name <- "1d_n150_1.obj"
+  Date <- "0807"
+  data_name <- "lalonde_mix_train_1.obj"
+  location  <- "02_build" # 01_data or 02_build
+  
   seed    <- 42
   iter    <- 10
   burn_in <- 5
   desctiption <- ""
   
   # read data
-  data_path <- here::here("01_data", "data", Date, data_name)
+  data_path <- here::here(location, "data", Date, data_name)
   data <- readRDS(data_path)
   
   X  <- data$X
@@ -28,22 +30,22 @@ main <- function(){
   analyze_info <- list(seed=seed, iter=iter, burn_in=burn_in, desctiption=desctiption)
   
   result <- list(samples=samples, data_info=data_info, analyze_info=analyze_info)
-  result |> save_result("proposal", data_path)
+  result |> save_result("proposal", data_name)
 }
 
 
 run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   # set data
-  X <- X |> matrix()
-  Y <- Y |> matrix()
-  Z <- Z |> matrix()
+  X <- X |> as.matrix()
+  Y <- Y |> as.matrix()
+  Z <- Z |> as.matrix()
   
-  X_O <- X[ID=="O"] |> matrix()
-  X_R <- X[ID=="R"] |> matrix()
-  Y_O <- Y[ID=="O"] |> matrix()
-  Y_R <- Y[ID=="R"] |> matrix()
-  Z_O <- Z[ID=="O"] |> matrix()
-  Z_R <- Z[ID=="R"] |> matrix()
+  X_O <- X[ID=="O",] |> as.matrix()
+  X_R <- X[ID=="R",] |> as.matrix()
+  Y_O <- Y[ID=="O",] |> as.matrix()
+  Y_R <- Y[ID=="R",] |> as.matrix()
+  Z_O <- Z[ID=="O",] |> as.matrix()
+  Z_R <- Z[ID=="R",] |> as.matrix()
   
   n_O <- length(Y_O)
   n_R <- length(Y_R)
@@ -81,7 +83,7 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   sig <- 1
   
   # hyper params
-  sig_hyper <- 1
+  sig_hyper <- 0.5
   
   alpha_l <- 2
   beta_l  <- 2
@@ -95,7 +97,7 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   
   # run mcmc
   for(t in 1:iter){
-    # 
+    # g
     eta_g <- renew_eta(g, eta_g, X, l_g, sig_eta, alpha_eta, beta_eta)
     l_g   <- renew_l(l_g, g, X, eta_g, sig_hyper, alpha_l, beta_l)
     g     <- renew_g(X, Y, Z, l_g, eta_g, sig, tau, b_O, Obs_flag)
@@ -139,6 +141,7 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   
   # output
   samples <- list("l_g"=l_g_list, "l_tau"=l_tau_list, "l_b"=l_b_list,
+                  "eta_g"=eta_g_list, "eta_tau"=eta_tau_list, "eta_b"=eta_b_list,
                   "tau"=tau_list, "g"=g_list,
                   "b_O"=b_O_list, "sig"=sig_list)
   return(samples)
