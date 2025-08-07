@@ -21,18 +21,16 @@ main <- function(){
   
   # build processed data
   exp_and_obs <- exp_obs_split(train_data, n_exp, n_obs)
-  exp_data <- exp_and_obs[[1]] 
-  obs_data <- exp_and_obs[[2]]
   
   # save
-  train_data |> build(drop_cols=FALSE, data_type="R") |> save(name="lalonde_train")
-  test_data  |> build(drop_cols=FALSE, data_type="R") |> save(name="lalonde_test")
-  exp_data   |> build(drop_cols=TRUE, data_type="R")  |> save(name="lalonde_exp")
-  train_data |> build(drop_cols=TRUE, data_type="O")  |> save(name="lalonde_obs")
+  train_data  |> build(drop_cols=FALSE) |> save_data(name="lalonde_train")
+  test_data   |> build(drop_cols=FALSE) |> save_data(name="lalonde_test")
+  exp_and_obs |> build(drop_cols=TRUE)  |> save_data(name="lalonde_mix_train")
 }
 
 
 train_test_split <- function(data, n_train, n_test){
+  data <- data |> dplyr::mutate(ID = rep("R", nrow(data)))
   train_data <- data |> dplyr::sample_n(size=n_train)
   train_idx <- rownames(train_data) |> as.integer()
   
@@ -42,17 +40,17 @@ train_test_split <- function(data, n_train, n_test){
 }
 
 
-build <- function(data, drop_cols, data_type){
+build <- function(data, drop_cols){
   # drop some cols
   if(drop_cols == TRUE){
     data <- data |> dplyr::select(-educ)
   }
   
   # make X, Y, Z, ID list
-  Y <- data$re78 |> as.matrix()
-  X <- data |> dplyr::select(-re78, -treat) |> as.matrix()
-  Z <- data$treat |> as.matrix()
-  ID <- rep(data_type, length(Y))
+  Y  <- data$re78 |> as.matrix()
+  X  <- data |> dplyr::select(-re78, -treat, -ID) |> as.matrix()
+  Z  <- data$treat |> as.matrix()
+  ID <- data$ID
   
   output <- list("X"=X, "Y"=Y, "Z"=Z, "ID"=ID)
   return(output)
@@ -76,8 +74,11 @@ exp_obs_split <- function(data, n_exp, n_obs){
   high_educ_treated_people <- high_educ_treated_people |> dplyr::sample_n(n_obs*0.6)
   other_people             <- other_people |> dplyr::sample_n(n_obs*0.4)
   
-  obs_data <- dplyr::bind_rows(high_educ_treated_people, other_people)
-  return(list(exp_data, obs_data))
+  obs_data <- dplyr::bind_rows(high_educ_treated_people, other_people) |> 
+    dplyr::mutate(ID=rep("O", n_obs))
+  mix_data <- dplyr::bind_rows(exp_data, obs_data)
+  
+  return(mix_data)
 }
 
 

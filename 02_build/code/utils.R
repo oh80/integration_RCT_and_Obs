@@ -24,7 +24,7 @@ make_save_path <- function(name){
 }
 
 
-save <- function(data, name){
+save_data <- function(data, name){
   path <- make_save_path(name)
   saveRDS(data, path)
 }
