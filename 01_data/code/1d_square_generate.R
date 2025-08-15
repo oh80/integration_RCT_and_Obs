@@ -4,8 +4,8 @@ source(functions_path)
 main <- function(){
   # settings
   seed = 42
-  nO <- 400
-  nR <- 150
+  nO <- 200
+  nR <- 50
   sig <- 1
   
   desctiption = ""
