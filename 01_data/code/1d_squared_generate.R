@@ -4,29 +4,31 @@ source(functions_path)
 main <- function(){
   # settings
   seed = 42
-  nO <- 100
-  nR <- 50
+  nO <- 400
+  nR <- 150
   sig <- 1
-  true_CATE = "squared"
   
   desctiption = ""
   
   # generate data
-  data <- generate_data(seed, nO, nR, sig, true_CATE)
+  data <- generate_data(seed, nO, nR, sig)
   
   # add meta information
-  info <- list(desctiption=desctiption, seed=seed, nO=nO, nR=nR,sig=sig, true_CATE=true_CATE)
+  info <- list(desctiption=desctiption, seed=seed, nO=nO, nR=nR,sig=sig)
   data$info = info
-  # data <- data |> add_meta_info(desctiption=desctiption,
-  #                               seed=seed, nO=nO, nR=nR,
-  #                               sig=sig, true_CATE=true_CATE)
+  
   
   # save
-  data |> save_data("1d", sample_size=nO+nR)
+  data |> save_data("1d_squared", sample_size=nO+nR)
 }
 
 
-generate_data <- function(seed, nO, nR, sig, true_CATE){
+squeared_CATE <- function(X){
+  return(X^2)
+}
+
+
+generate_data <- function(seed, nO, nR, sig){
   set.seed(seed)
   n <- nR + nO 
   ID <- c(rep("R", nR), rep("O", nO))
@@ -43,10 +45,7 @@ generate_data <- function(seed, nO, nR, sig, true_CATE){
   Z <- rbinom(n, 1, Pi)
   
   # tau
-  if(true_CATE=="squared"){
-    CATE <- function(x){ x^2 }
-  }
-  Tau <- CATE(X)
+  Tau <- squeared_CATE(X)
   
   # outcome
   Base <- 1 + X + U
@@ -55,7 +54,6 @@ generate_data <- function(seed, nO, nR, sig, true_CATE){
   data <- list("X"=X, "Y"=Y, "Tau"=Tau, "Base"=Base, "U"=U, "Z"=Z, "ID"=ID)
   return(data)
 }
-
 
 
 main()

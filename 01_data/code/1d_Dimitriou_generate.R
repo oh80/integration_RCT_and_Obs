@@ -3,7 +3,7 @@ source(functions_path)
 
 main <- function(){
   # settings
-  seed = 78
+  seed <- 42
   n <- 500
   
   desctiption = ""
@@ -59,11 +59,11 @@ geneate_outcome <- function(X, ID, Z, Tau){
     # Observation
     if(ID[i]=="O"){
       U <- rnorm(n=1, mean=(2*Z-1)*sin(X-1), sd=1)
-      Y[i] <- Z[i] * Tau[i] * X[i]^2 - 1 + U + epsilon
+      Y[i] <- Z[i] * Tau[i] + X[i]^2 - 1 + U + epsilon
       
       # RCT   
     }else if(ID[i]=="R"){
-      Y[i] <- Z[i] * Tau[i] * X[i]^2 - 1 + epsilon
+      Y[i] <- Z[i] * Tau[i] + X[i]^2 - 1 + epsilon
     }}
   return(Y)
 }
@@ -89,6 +89,10 @@ generate_data <- function(seed, n){
   
   Tau <- apply(X, 2, true_CATE)
   Y <- geneate_outcome(X, ID, Z, Tau)
+  
+  # # scaling
+  # X <- (X - mean(X))/sd(X)
+  # Y <- (Y - mean(Y))/sd(Y)
   
   data <- list("X"=X, "Y"=Y, "Tau"=Tau, "Z"=Z, "ID"=ID)
   return(data)
