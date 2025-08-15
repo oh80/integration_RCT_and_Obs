@@ -1,12 +1,13 @@
 source(here::here("03_analyze", "code", "samplers.R"))
+source(here::here("03_analyze", "code", "predict.R"))
 source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
   # settings
-  Date     <- "0807"
-  location <- "02_build" # 01_data or 02_build
+  Date     <- "0815"
+  data_name <- "1d_squared_n250_1.obj"
+  location <- "01_data" # 01_data or 02_build
   use_data <- "both" # RCT or observation or both
-  data_name <- "lalonde_train_1.obj"
   
   seed    <- 42
   iter    <- 10
@@ -22,11 +23,20 @@ main <- function(){
   set.seed(seed)
   samples <- run_MCMC(data, iter=iter, burn_in=burn_in)
   
+  # predict
+  if(location == "01_data"){
+    test_data <- make_test_data(data_name, data)
+  }else{
+    test_data <- data$test_X
+  }
+  pred_res <- compute_pred_and_CI(data, test_data, samples, use_data)
+  
   # save result
   data_info    <- data$info
   analyze_info <- list(seed=seed, iter=iter, burn_in=burn_in, desctiption=desctiption)
   
-  result <- list(samples=samples, data_info=data_info, analyze_info=analyze_info)
+  result <- list(samples=samples, pred_res=pred_res, 
+                 data_info=data_info, analyze_info=analyze_info)
   result |> save_result(use_data, data_name)
 }
 

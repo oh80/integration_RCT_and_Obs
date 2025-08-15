@@ -18,6 +18,7 @@ compute_train_test_kernel <- function(X, X2, l, eta) {
   return(K)
 }
 
+
 get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
   # extract samples about tau
   tau_samples <- MCMC_samples$tau
@@ -29,40 +30,26 @@ get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
   
   # store object
   pred_mean_samples <- matrix(NA, nrow=num_samples, ncol=num_test_points)
-  pred_var_samples  <- matrix(NA, nrow=num_samples, ncol=num_test_points)
   
   # computation pred
+  print("prediction start!")
   for(i in 1:num_samples){
     small_mat <- 1e-05 * diag(dim(train_X)[1])
     K_train       <- compute_kernel_mat(train_X, l_samples[i], eta_samples[i])
     K_train_test  <- compute_train_test_kernel(train_X, test_X, l_samples[i], eta_samples[i])
     K_test        <- compute_kernel_mat(test_X, l_samples[i], eta_samples[i])
     
-    try(pred_mean_samples[i,] <- t(K_train_test) %*% chol_solve(K_train+small_mat) %*% tau_samples[i,])
-    pred_cov_mat  <- K_test - t(K_train_test) %*% chol_solve(K_train+small_mat) %*% K_train_test
-    pred_var_samples[i,] <- diag(pred_cov_mat)
+    pred_mean_samples[i,] <- t(K_train_test) %*% chol_solve(K_train+small_mat) %*% tau_samples[i,]
     
     if(i%%50==0){
       message <- paste0(i, " iter has been done!")
       print(message)
     }
   }
+  print("prediction end!")
   
-  output <- list("mean"=pred_mean_samples, "var"=pred_var_samples)
-  return(output)
+  return(pred_mean_samples)
 }
-
-
-calc_IC_bound <- function(mean, var){
-  if(var < 0){
-    var <- 1e-5
-  }
-  upper <- qnorm(p=0.975, mean=mean, sd=sqrt(var))
-  lower <- qnorm(p=0.025, mean=mean, sd=sqrt(var))
-  
-  return(c(upper, lower))
-}
-
 
 
 compute_pred_and_CI <- function(train_data, test_data, samples, method){
@@ -78,18 +65,62 @@ compute_pred_and_CI <- function(train_data, test_data, samples, method){
   test_X  <- test_data$X |> as.matrix()
   
   pred_dist_samples <- get_pred_dist_samples(samples, train_X, test_X)
-  pred_mean <- apply(pred_dist_samples$mean, 2, mean)
-  pred_var  <- apply(pred_dist_samples$var, 2, mean) + apply(pred_dist_samples$mean, 2, var)
+  pred_mean <- apply(pred_dist_samples, 2, mean)
   
   CI_upper <- c()
   CI_lower <- c()
   
   for(i in 1:length(pred_mean)){
-    CI_bound <- calc_IC_bound(pred_mean[i], pred_var[i])
-    CI_upper[i] <- CI_bound[1]
-    CI_lower[i] <- CI_bound[2]
+    CI_bound <- quantile(pred_dist_samples[,i], probs = c(0.025, 0.975))
+    CI_lower[i] <- CI_bound[1]
+    CI_upper[i] <- CI_bound[2]
   }
   
   result <- list("mean"=pred_mean, "CI_upper"=CI_upper, "CI_lower"=CI_lower)
   return(result)
+}
+
+
+# functions for make test data
+squeared_CATE <- function(X){
+  return(X^2)
+}
+
+
+Relu2_CATE <- function(X){
+  
+  Relu <- function(x){
+    if(x > 0){
+      return(x)
+    }else{
+      return(0)
+    }}
+  
+  output <- sapply(X, Relu)^2
+  return(output)
+}
+
+
+make_test_data <- function(data_name, data){
+  test_X <- seq(-2, 2, by=0.01)|> as.matrix()
+  
+  # Dimitriou setting
+  if(stringr::str_detect(data_name,  "Dimitriou")){
+    true_HTE <- 1+test_X+test_X^2
+  }
+
+  # original setting
+  else{
+    if(stringr::str_detect(data_name,  "squared_n")){
+      true_HTE <- squeared_CATE(test_X)
+      
+    }else if(stringr::str_detect(data_name,  "Relu2")){
+      true_HTE <- Relu2_CATE(test_X)
+      
+    }else if(stringr::str_detect(data_name,  "squared_and_root")){
+      true_HTE <- sq_and_root_CATE(test_X)
+    }}
+  
+  test_data <- list("X"=test_X, "true_HTE"=true_HTE)
+  return(test_data)
 }
