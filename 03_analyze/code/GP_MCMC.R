@@ -5,13 +5,13 @@ source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
   # settings
-  Date <- "0815"
-  data_name <- "1d_squared_n250_1.obj"
+  Date <- "0817"
+  data_name <- "1d_inconstant_bias_n250_1.obj"
   location  <- "01_data"     # 01_data or 02_build
   
   seed    <- 42
-  iter    <- 10
-  burn_in <- 5
+  iter    <- 500
+  burn_in <- 200
   desctiption <- ""
   
   # read data
@@ -158,5 +158,4 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   return(samples)
 }
 
-
-main()
+#main()

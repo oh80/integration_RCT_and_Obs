@@ -155,4 +155,4 @@ run_MCMC <- function(data, iter=1000, burn_in=200){
 }
 
 
-main()
+#main()
