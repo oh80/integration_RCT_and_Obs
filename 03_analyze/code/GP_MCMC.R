@@ -5,8 +5,8 @@ source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
   # settings
-  Date <- "0817"
-  data_name <- "1d_inconstant_bias_n250_1.obj"
+  Date <- "0820"
+  data_name <- "1d_inconstant_bias_n550_1.obj"
   location  <- "01_data"     # 01_data or 02_build
   
   seed    <- 42
@@ -78,6 +78,8 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   
   sig_list  <- matrix(0, nrow=iter-burn_in)
   
+  mu_b_list  <- matrix(0, nrow=iter-burn_in)
+  
   # initial value
   l_g   <- 2
   l_tau <- 2
@@ -90,6 +92,7 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   g      <- rep(1, n_O+n_R)
   tau   <- rep(1, n_O+n_R)
   b_O   <- rep(0, n_O)
+  b_tilde_O <- rep(0, n_O)
   
   sig <- 1
   
@@ -119,9 +122,12 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
     tau     <- renew_tau(X, Y, Z, l_tau, eta_tau, sig, g, b_O, Obs_flag)
     
     # b
-    eta_b <- renew_eta(b_O, eta_b, X_O, l_b, sig_eta, alpha_eta, beta_eta)
-    l_b <- renew_l_b(l_b, tau[Obs_flag], X_O, eta_b, sig_hyper, alpha_l, beta_l)
-    b_O <- renew_b(X_O, Y_O, Z_O, l_b, eta_b, sig, g[Obs_flag], tau[Obs_flag])
+    eta_b <- renew_eta(b_tilde_O, eta_b, X_O, l_b, sig_eta, alpha_eta, beta_eta)
+    l_b   <- renew_l_b(l_b, b_tilde_O, X_O, eta_b, sig_hyper, alpha_l, beta_l)
+    mu_b  <- renew_mu_b(Y_O, Z_O, g[Obs_flag], tau[Obs_flag], b_tilde_O, sig, sig_mu_b = 100)
+    b_tilde_O  <- renew_b_tilde(X_O, Y_O, Z_O, l_b, eta_b, sig, g[Obs_flag], tau[Obs_flag], mu_b)
+    
+    b_O <- mu_b + b_tilde_O
     
     # sig
     sig <- renew_sig(X, Y, Z, g, tau, b_O, Obs_flag)
@@ -142,6 +148,8 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
       b_O_list[j,]   <- b_O
       
       sig_list[j] <- sig
+      
+      mu_b_list[j] <- mu_b
     }
     
     if(t%%50 == 0){
@@ -154,8 +162,8 @@ run_MCMC <- function(X, Y, Z, ID, iter=1000, burn_in=200){
   samples <- list("l_g"=l_g_list, "l_tau"=l_tau_list, "l_b"=l_b_list,
                   "eta_g"=eta_g_list, "eta_tau"=eta_tau_list, "eta_b"=eta_b_list,
                   "tau"=tau_list, "g"=g_list,
-                  "b_O"=b_O_list, "sig"=sig_list)
+                  "b_O"=b_O_list, "sig"=sig_list, "mu_b"=mu_b_list)
   return(samples)
 }
 
-#main()
+main()

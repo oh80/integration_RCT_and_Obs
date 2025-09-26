@@ -170,7 +170,20 @@ renew_l_b <- function(l, GP_O,  X_O, eta, sig_hyper, alpha_l, beta_l){
 }
 
 
-renew_b <- function(X, Y, Z, l, eta, sig, g, tau){
+renew_mu_b <- function(Y_O, Z_O, g_O, tau_O, b_tilde_O, sig, sig_mu_b = 100){
+  post_precision <- sum(Z_O^2) / sig + 1 / sig_mu_b
+  sig_sq_n <- 1 / post_precision
+  
+  resid <- Y_O - g_O - Z_O * (tau_O + b_tilde_O)
+  mu_n <- sig_sq_n * (sum(Z_O * resid) / sig)
+
+  mu_b <- rnorm(n = 1, mean = mu_n, sd = sqrt(sig_sq_n))
+  
+  return(mu_b)
+}
+
+
+renew_b_tilde <- function(X, Y, Z, l, eta, sig, g, tau, mu_b){
   n <- nrow(X)
   
   small_mat <- 1e-05 * diag(n)
@@ -180,7 +193,7 @@ renew_b <- function(X, Y, Z, l, eta, sig, g, tau){
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
   
   A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
-  B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * tau)
+  B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * (tau + mu_b))
   
   b <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
