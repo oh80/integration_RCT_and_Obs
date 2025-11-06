@@ -75,8 +75,7 @@ renew_eta <- function(GP, eta, X, l, sig_eta, alpha_eta, beta_eta){
 
 renew_l <- function(l, GP, X, eta, sig_hyper, alpha_l, beta_l){
   # sample from proposal distribution
-  l_new <- truncnorm::rtruncnorm(n=1, a=0, mean = l, sd=sig_hyper)
-  #l_new <- truncnorm::rtruncnorm(n=1, a=0, mean = 0, sd=sig_hyper)
+  l_new <- truncnorm::rtruncnorm(n=1, a=0, b=2, mean = l, sd=sig_hyper)
   
   small_mat <- 1e-05 * diag(length(GP))
   
@@ -87,11 +86,11 @@ renew_l <- function(l, GP, X, eta, sig_hyper, alpha_l, beta_l){
   log_like_new <- -1/2 * (get_logdet(K_new) + t(GP) %*% chol_solve(K_new) %*% GP)
   
   # compute log ratio
-  log_r <- log_like_new - log_like                           # likelihood
-          + log(dgamma(l_new, alpha_l, beta_l))                  # prior
-          - log(dgamma(l, alpha_l, beta_l))
-          - log(truncnorm::dtruncnorm(l_new, a=0, mean = l, sd=sig_hyper)) 
-          + log(truncnorm::dtruncnorm(l, a=0, mean = l, sd=sig_hyper))     # proposal 
+  log_r <- log_like_new - log_like                                          # likelihood
+          + log(dunif(l_new, min=0, max=2))                                 # prior
+          - log(dunif(l, min=0, max=2))
+          - log(truncnorm::dtruncnorm(l_new, a=0, mean = l, sd=sig_hyper))
+          + log(truncnorm::dtruncnorm(l, a=0, mean = l, sd=sig_hyper))      # proposal
   
   log_U <- log(runif(n=1))
   if(log_r > log_U){
@@ -102,8 +101,7 @@ renew_l <- function(l, GP, X, eta, sig_hyper, alpha_l, beta_l){
 }
 
 
-
-renew_g <- function(X, Y, Z, l, eta, sig, tau, b_O, Obs_flag){
+renew_g <- function(X, Y, Z, l, eta, sig_R, sig_O, tau, b_O, Obs_flag){
   n <- nrow(X)
   
   small_mat <- 1e-05 * diag(n)
@@ -112,8 +110,17 @@ renew_g <- function(X, Y, Z, l, eta, sig, tau, b_O, Obs_flag){
   HTE <- tau
   HTE[Obs_flag] <- HTE[Obs_flag] + b_O
   
-  A <- 1/sig * diag(n) + chol_solve(K_g)
-  B <- (1/sig * diag(n)) %*% (Y - Z * HTE)
+  precision_vec <- rep(1/sig_R, n)
+  precision_vec[Obs_flag] <- 1/sig_O
+  precision_mat <- diag(precision_vec)
+  A <- precision_mat + chol_solve(K_g)
+  B <- precision_mat %*% (Y - Z * HTE)
+  
+  # A <- 1/sig * diag(n) + chol_solve(K_g)
+  # B <- (1/sig * diag(n)) %*% (Y - Z * HTE)
+  # weighted_precision_mat <- diag(W / sig)
+  # A <- weighted_precision_mat + chol_solve(K_g)
+  # B <- weighted_precision_mat %*% (Y - Z * HTE)
   
   g <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
@@ -121,8 +128,8 @@ renew_g <- function(X, Y, Z, l, eta, sig, tau, b_O, Obs_flag){
 }
 
 
-
-renew_tau <- function(X, Y, Z, l, eta, sig, g, b_O, Obs_flag){
+#renew_tau <- function(X, Y, Z, W,  l, eta, sig, g, b_O, Obs_flag){
+renew_tau <- function(X, Y, Z, l, eta, sig_R, sig_O, g, b_O, Obs_flag){
   n <- nrow(X)
   
   small_mat <- 1e-05 * diag(n)
@@ -134,8 +141,18 @@ renew_tau <- function(X, Y, Z, l, eta, sig, g, b_O, Obs_flag){
   Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
   
-  A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
-  B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * b)
+  # weighted_precision_mat <- diag(W / sig)
+  # A <- Z_left * weighted_precision_mat * Z_right + chol_solve(K_tau)
+  # B <- as.matrix(Z_left * weighted_precision_mat) %*% (Y - g - Z * b)
+  
+  precision_vec <- rep(1/sig_R, n)
+  precision_vec[Obs_flag] <- 1/sig_O
+  precision_mat <- diag(precision_vec)
+  A <- Z_left * precision_mat * Z_right + chol_solve(K_tau)
+  B <- as.matrix(Z_left * precision_mat) %*% (Y - g - Z * b)
+  
+  # A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
+  # B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * b)
   
   tau <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
@@ -144,8 +161,7 @@ renew_tau <- function(X, Y, Z, l, eta, sig, g, b_O, Obs_flag){
 
 
 renew_l_b <- function(l, GP_O,  X_O, eta, sig_hyper, alpha_l, beta_l){
-  # sample from proposal distribution
-  l_new <- truncnorm::rtruncnorm(n=1, a=0, mean=l, sd=sig_hyper)
+  l_new <- truncnorm::rtruncnorm(n=1, a=0, b=2, mean = l, sd=sig_hyper)
   
   small_mat_O <- 1e-05 * diag(length(GP_O))
   
@@ -154,12 +170,14 @@ renew_l_b <- function(l, GP_O,  X_O, eta, sig_hyper, alpha_l, beta_l){
   
   log_like <- -1/2 * (get_logdet(K_g_O) + t(GP_O) %*% chol_solve(K_g_O) %*% (GP_O))
   log_like_new <- -1/2 * (get_logdet(K_g_O_new) + t(GP_O) %*% chol_solve(K_g_O_new) %*% (GP_O))
+  
   # compute log ratio
-  log_r <- log_like_new - log_like                           # likelihood
-  + log(dgamma(l_new, alpha_l, beta_l))                  # prior
-  - log(dgamma(l, alpha_l, beta_l))
-  - log(truncnorm::dtruncnorm(l_new, a=0, sd=sig_hyper)) 
-  + log(truncnorm::dtruncnorm(l, a=0, sd=sig_hyper))     # proposal 
+  log_r <- log_like_new - log_like                                        # likelihood
+    + log(dunif(l_new, min=0, max=2))                                     # prior
+    - log(dunif(l, min=0, max=2))
+    - log(truncnorm::dtruncnorm(l_new, a=0, b=2, mean = l, sd=sig_hyper)) 
+    + log(truncnorm::dtruncnorm(l, a=0, b=2, mean = l, sd=sig_hyper))     # proposal 
+  
   
   log_U <- log(runif(n=1))
   if(log_r > log_U){
@@ -170,17 +188,45 @@ renew_l_b <- function(l, GP_O,  X_O, eta, sig_hyper, alpha_l, beta_l){
 }
 
 
-renew_mu_b <- function(Y_O, Z_O, g_O, tau_O, b_tilde_O, sig, sig_mu_b = 100){
-  post_precision <- sum(Z_O^2) / sig + 1 / sig_mu_b
-  sig_sq_n <- 1 / post_precision
-  
-  resid <- Y_O - g_O - Z_O * (tau_O + b_tilde_O)
-  mu_n <- sig_sq_n * (sum(Z_O * resid) / sig)
+# renew_mu_b <- function(Y_O, Z_O, g_O, tau_O, b_tilde_O, sig_O, sig_mu_b = 100){
+#   post_precision <- sum(Z_O^2) / sig_O + 1 / sig_mu_b
+#   sig_sq_n <- 1 / post_precision
+#   
+#   resid <- Y_O - g_O - Z_O * (tau_O + b_tilde_O)
+#   mu_n <- sig_sq_n * (sum(Z_O * resid) / sig_O)
+# 
+#   mu_b <- rnorm(n = 1, mean = mu_n, sd = sqrt(sig_sq_n))
+#   
+#   return(mu_b)
+# }
 
-  mu_b <- rnorm(n = 1, mean = mu_n, sd = sqrt(sig_sq_n))
+renew_mu_b <- function(Y_O, Z_O, g_O, tau_O, b_tilde_O, sig_O, W_O, mu_b, sig_mu_b = 100){
+  mu_b_new <- runif(n=1, min = mu_b - 0.1, max = mu_b + 0.1)
   
+  n <- length(Y_O)
+  log_like_new <- 0
+  log_like_old <- 0
+  
+  # 後でpurrrに
+  for(i in 1:n){
+    if(Z_O[n] == 1){
+      model_new <- g_O[n] + tau_O[n] + b_tilde_O[n] + mu_b_new
+      model_old <- g_O[n] + tau_O[n] + b_tilde_O[n] + mu_b
+      log_like_new <- log_like_new + dnorm(Y_O[n], mean = model_new, sig_O, log = TRUE) * W_O[n]
+      log_like_old <- log_like_old + dnorm(Y_O[n], mean = model_old, sig_O, log = TRUE) * W_O[n]
+    }
+  }
+  log_r <- log_like_new - log_like_old        # likelihood
+          + dnorm(mu_b_new, mean = 0, sd = 0.1)
+          - dnorm(mu_b, mean = 0, sd = 0.1)     # prior
+  
+  log_U <- log(runif(n=1))
+  if(log_r > log_U){
+    mu_b <- mu_b_new
+  }
   return(mu_b)
 }
+
 
 
 renew_b_tilde <- function(X, Y, Z, l, eta, sig, g, tau, mu_b){
@@ -201,16 +247,45 @@ renew_b_tilde <- function(X, Y, Z, l, eta, sig, g, tau, mu_b){
 }
 
 
+renew_b <- function(X, Y, Z, l, eta, sig, g, tau){
+  n <- nrow(X)
+  
+  small_mat <- 1e-05 * diag(n)
+  K_tau     <- compute_kernel_mat(X, l, eta) + small_mat
+  
+  Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
+  Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
+  
+  A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
+  B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * tau)
+  
+  b <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
+    as.vector()
+  return(b)
+}
+
+
 renew_sig <- function(X, Y, Z, g, tau, b_O, Obs_flag, nu_0=10, sig_0=10){
   n <- length(Y)
-  nu_new <- nu_0 + n
-  
   HTE <- tau 
   HTE[Obs_flag] <-  HTE[Obs_flag] + b_O
   
-  ss_n <- nu_0 * sig_0 + sum((Y - g - HTE*Z)^2)
-  sig <- 1/rgamma(n = 1, nu_new/2, ss_n/2)
-  return(sig)
+  # RCT
+  RCT_flag <- c(Obs_flag == 0) |> as.integer()
+  n_R <- sum(RCT_flag)
+  
+  nu_new_R <- nu_0 + n_R
+  ss_n_R <- nu_0 * sig_0 + sum((Y[RCT_flag] - g[RCT_flag] - HTE[RCT_flag]*Z[RCT_flag])^2)
+  sig_R <- 1/rgamma(n = 1, nu_new_R/2, ss_n_R/2)
+
+  # Obs
+  n_O <- sum(Obs_flag)
+  
+  nu_new_O <- nu_0 + n_O
+  ss_n_O <- nu_0 * sig_0 + sum((Y[Obs_flag] - g[Obs_flag] - HTE[Obs_flag]*Z[Obs_flag])^2)
+  sig_O <- 1/rgamma(n = 1, nu_new_O/2, ss_n_O/2)
+  
+  return(list(sig_R, sig_O))
 }
 
 
