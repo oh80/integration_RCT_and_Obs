@@ -2,10 +2,11 @@ source(here::here("04_report", "code", "utils.R"))
 
 main <- function(){
   #setting
-  data_date    <- "0820"
-  data_name    <- "1d_inconstant_bias_n550_1.obj"
-  analyze_date <- "0926"
-  analyze_name <- "proposal_1d_inconstant_bias_n550_1_1.obj"
+  data_date    <- "1107"
+  data_name    <- "1d_constant_bias_n250_1.obj"
+  analyze_date <- "1107"
+  analyze_name <- "2step-proposal_1d_constant_bias_n250_1_2.obj"
+  #analyze_name <- "both_1d_inconstant_bias_n250_1_1.obj"
   method <- "proposal"
   
   # read data and MCMC samples
@@ -21,6 +22,7 @@ main <- function(){
   
   # plot
   plot <- plot_result(test_data, pred_result)
+  plot
   save_plot(plot, analyze_name)
 }
 
@@ -46,6 +48,9 @@ prepare_test_data <- function(data_name, info){
   }
   if(stringr::str_detect(data_name, "squared_and_root")){
     true_HTE <- sq_and_root_CATE(test_X)
+  }
+  if(stringr::str_detect(data_name, "logexp")){
+    true_HTE <- logexp_CATE(test_X, beta=2)
   }
   else{
     true_HTE <- test_X^2

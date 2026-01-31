@@ -3,7 +3,7 @@ source(functions_path)
 
 main <- function(){
   # settings
-  seed = 42
+  seed = 1
   nO <- 200
   nR <- 50
   
@@ -64,4 +64,4 @@ generate_data <- function(seed, nO, nR, sig, alpha){
 }
 
 
-main()
+#main()

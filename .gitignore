@@ -3,6 +3,10 @@
 .RData
 .Ruserdata
 
+01_data/data
+03_analyze/result
+04_report/result
+
 # python
 *.pyc
 .python-version

@@ -4,14 +4,14 @@ source(here::here("03_analyze", "code", "utils.R"))
 
 main <- function(){
   # settings
-  Date     <- "0815"
-  data_name <- "1d_squared_n250_1.obj"
+  Date     <- "1107"
+  data_name <- "1d_inconstant_bias_n250_1.obj"
   location <- "01_data" # 01_data or 02_build
   use_data <- "both" # RCT or observation or both
   
   seed    <- 42
-  iter    <- 10
-  burn_in <- 5
+  iter    <- 500
+  burn_in <- 200
   desctiption <- ""
   
   # read data
@@ -116,15 +116,18 @@ run_MCMC <- function(data, iter=1000, burn_in=200){
     # g
     eta_g <- renew_eta(g, eta_g, X, l_g, sig_eta, alpha_eta, beta_eta)
     l_g   <- renew_l(l_g, g, X, eta_g, sig_hyper, alpha_l, beta_l)
-    g     <- renew_g(X, Y, Z, l_g, eta_g, sig, tau, b_O=0, Obs_flag=rep(FALSE, n))
+    g     <- renew_g(X, Y, Z, l_g, eta_g, sig, sig_O = 0,                  
+                     tau = tau, b_O=0, Obs_flag=rep(FALSE, n))
     
     # tau
     eta_tau <- renew_eta(tau, eta_tau, X, l_tau, sig_eta, alpha_eta, beta_eta)
     l_tau   <- renew_l(l_tau, tau, X, eta_tau, sig_hyper, alpha_l, beta_l)
-    tau     <- renew_tau(X, Y, Z, l_tau, eta_tau, sig, g, b_O=0, Obs_flag=rep(FALSE, n))
+    tau     <- renew_tau(X, Y, Z, l_tau, eta_tau, sig,sig_O = 0,
+                         g = g, b_O=0, Obs_flag=rep(FALSE, n))
     
     # sig
     sig <- renew_sig(X, Y, Z, g, tau, b_O=0, Obs_flag=rep(FALSE, n))
+    sig <- sig[[1]]
     
     #save
     if(t > burn_in){

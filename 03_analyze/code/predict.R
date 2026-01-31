@@ -125,6 +125,15 @@ Relu2_CATE <- function(X){
   return(output)
 }
 
+squeared_CATE <- function(X){
+  return(X^2)
+}
+
+logexp_CATE <- function(X, beta=2){
+  cate <- log(1+exp(beta*X))
+  return(cate)
+}
+
 
 make_test_data <- function(data_name, data){
   test_X <- seq(-2, 2, by=0.01)|> as.matrix()
@@ -142,11 +151,17 @@ make_test_data <- function(data_name, data){
     }else if(stringr::str_detect(data_name,  "Relu2")){
       true_HTE <- Relu2_CATE(test_X)
       
+    }else if(stringr::str_detect(data_name,  "_constant_bias")){
+      true_HTE <- Relu2_CATE(test_X)
+      
     }else if(stringr::str_detect(data_name,  "squared_and_root")){
       true_HTE <- sq_and_root_CATE(test_X)
       
     }else if(stringr::str_detect(data_name,  "inconstant_bias")){
       true_HTE <- squeared_CATE(test_X)
+      
+    }else if(stringr::str_detect(data_name,  "logexp")){
+      true_HTE <- logexp_CATE(test_X)
     }}
   
   test_data <- list("X"=test_X, "true_HTE"=true_HTE)

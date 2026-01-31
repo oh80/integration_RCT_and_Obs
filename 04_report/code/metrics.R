@@ -3,11 +3,11 @@ source(here::here("04_report", "code", "utils.R"))
 
 main <- function(){
   #setting
-  data_date    <- "0724"
-  data_name    <- "1d_n550_1.obj"
-  analyze_date <- "0724"
-  analyze_name <- "both_1d_n550_1_1.obj"
-  method <- "both"
+  data_date    <- "0805"
+  data_name    <- "narrow_1d_n550_1.obj"
+  analyze_date <- "0805"
+  analyze_name <- "proposal_narrow_1d_n550_1_1.obj"
+  method <- "proposal"
   
   # read data and MCMC samples
   data_path <- here::here("01_data", "data", data_date, data_name)
@@ -18,7 +18,7 @@ main <- function(){
   samples  <- MCMC_res$samples
   
   # prepare test-data
-  test_data <- prepare_test_data(data_name)
+  test_data <- prepare_test_data(data_name, data$info)
   
   # compute pred mean and 95%CI
   pred_result <- compute_pred_and_CI(data, test_data, samples, method)

@@ -3,32 +3,34 @@ source(functions_path)
 
 main <- function(){
   # settings
-  seed = 1
-  nO <- 200
-  nR <- 50
+  seed = 42
+  nO <- 400
+  nR <- 150
   sig <- 1
+  beta <- 2
   
   desctiption = ""
   
   # generate data
-  data <- generate_data(seed, nO, nR, sig)
+  data <- generate_data(seed, nO, nR, sig, beta)
   
   # add meta information
-  info <- list(desctiption=desctiption, seed=seed, nO=nO, nR=nR,sig=sig)
+  info <- list(desctiption=desctiption, seed=seed, nO=nO, nR=nR,sig=sig, beta=beta)
   data$info = info
   
   
   # save
-  data |> save_data("1d_squared", sample_size=nO+nR)
+  data |> save_data("1d_logexp", sample_size=nO+nR)
 }
 
 
-squeared_CATE <- function(X){
-  return(X^2)
+logexp_CATE <- function(X, beta){
+  cate <- log(1+exp(beta*X))
+  return(cate)
 }
 
 
-generate_data <- function(seed, nO, nR, sig){
+generate_data <- function(seed, nO, nR, sig, beta){
   set.seed(seed)
   n <- nR + nO 
   ID <- c(rep("R", nR), rep("O", nO))
@@ -45,12 +47,11 @@ generate_data <- function(seed, nO, nR, sig){
   Z <- rbinom(n, 1, Pi)
   
   # tau
-  Tau <- squeared_CATE(X)
+  Tau <- logexp_CATE(X,beta)
   
   # outcome
   Base <- 1 + X + U
   Y <- Base + Z*Tau + sig*rnorm(n)
-  
   
   data <- list("X"=X, "Y"=Y, "Tau"=Tau, "Base"=Base, "U"=U, "Z"=Z, "ID"=ID)
   return(data)

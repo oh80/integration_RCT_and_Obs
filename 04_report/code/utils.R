@@ -10,7 +10,7 @@ make_res_path <- function(analyze_name, type){
   # make save path
   analyze_name <- sub(".obj", "", analyze_name)
   if(type=="plot"){
-    file_name <- paste0(analyze_name,"_plot", ".pdf")
+    file_name <- paste0(analyze_name,"_plot", ".png")
   }else if(type=="metrics"){
     file_name <- paste0(analyze_name, ".csv")
   }

@@ -7,11 +7,12 @@ main <- function(){
   nO <- 200
   nR <- 50
   sig <- 1
+  b <- 2
   
   desctiption = ""
   
   # generate data
-  data <- generate_data(seed, nO, nR, sig)
+  data <- generate_data(seed, nO, nR, sig, b)
   
   # add meta information
   info <- list(desctiption=desctiption, seed=seed, nO=nO, nR=nR,sig=sig)
@@ -19,7 +20,7 @@ main <- function(){
   
   
   # save
-  data |> save_data("1d_squared", sample_size=nO+nR)
+  data |> save_data("1d_constant_bias", sample_size=nO+nR)
 }
 
 
@@ -28,7 +29,7 @@ squeared_CATE <- function(X){
 }
 
 
-generate_data <- function(seed, nO, nR, sig){
+generate_data <- function(seed, nO, nR, sig, b){
   set.seed(seed)
   n <- nR + nO 
   ID <- c(rep("R", nR), rep("O", nO))
@@ -38,6 +39,7 @@ generate_data <- function(seed, nO, nR, sig){
   X[ID=="R"] <- runif(nR, -1, 1)
   X[ID=="O"] <- runif(nO, -2, 2)
   U <- runif(n, -1, 1)
+  B <- c(rep(0, nR), rep(b, nO))
   
   # assignment
   LGS <- function(x){ 1/(1+exp(-x)) }
@@ -48,8 +50,8 @@ generate_data <- function(seed, nO, nR, sig){
   Tau <- squeared_CATE(X)
   
   # outcome
-  Base <- 1 + X + U
-  Y <- Base + Z*Tau + sig*rnorm(n)
+  Base <- 1 + X 
+  Y <- Base + Z*(Tau + B) + sig*rnorm(n)
   
   
   data <- list("X"=X, "Y"=Y, "Tau"=Tau, "Base"=Base, "U"=U, "Z"=Z, "ID"=ID)
@@ -57,4 +59,4 @@ generate_data <- function(seed, nO, nR, sig){
 }
 
 
-#main()
+main()
