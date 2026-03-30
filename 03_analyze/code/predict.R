@@ -47,7 +47,7 @@ get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
     # pred var
     pred_cov_mat <- K_test - M %*% K_train_test
     pred_var_samples[i,] <- diag(pred_cov_mat)
-    pred_var_samples[i, pred_var_samples[i,] < 0] <- 0 
+    pred_var_samples[i,] <- pmax(diag(pred_cov_mat), 1e-6)
     
     if(i%%50==0){
       message <- paste0(i, " iter has been done!")
@@ -59,29 +59,31 @@ get_pred_dist_samples <- function(MCMC_samples,train_X, test_X){
 }
 
 
-compute_pred_and_CI <- function(train_data, test_data, samples, method){
+compute_pred_and_CI <- function(train_data, test_data, samples, method, num_sample_per_iter = 100){
   if(method == "RCT"){
     idx = c(train_data$ID=="R")
+    train_X <- train_data$X[idx] |> as.matrix()
   }else if(method == "observation"){
     idx = c(train_data$ID=="O")
+    train_X <- train_data$X[idx] |> as.matrix()
   }else{
-    idx = rep(TRUE, length(train_data$X))
+    train_X <- train_data$X |> as.matrix()
   }
   
-  train_X <- train_data$X[idx] |> as.matrix()
   test_X  <- test_data$X |> as.matrix()
   
   pred_dist_samples <- get_pred_dist_samples(samples, train_X, test_X)
   
   num_test_points  <- dim(test_X)[1]
-  num_pred_samples <- dim(pred_dist_samples$mean)[1]
+  num_mcmc_samples <- dim(pred_dist_samples$mean)[1]
+  num_pred_samples <- num_mcmc_samples * num_sample_per_iter
   
   pred_samples <- matrix(NA, nrow = num_pred_samples, ncol = num_test_points)
-  for (i in 1:num_pred_samples) {
-    # pred_samples[i, ] <- rnorm(num_test_points, 
-    #                            mean = pred_dist_samples$mean[i, ], 
-    #                            sd = sqrt(pred_dist_samples$var[i, ]))
-    pred_samples[i, ] <- mvtnorm::rmvnorm(n=1, mean=pred_dist_samples$mean[i, ],
+  cnt <- 1
+  for (i in 1:num_mcmc_samples){
+    start_idx <- (i - 1) * num_sample_per_iter + 1
+    end_idx   <- i * num_sample_per_iter
+    pred_samples[start_idx:end_idx, ] <- mvtnorm::rmvnorm(n=num_sample_per_iter, mean=pred_dist_samples$mean[i, ],
                                                sigma = diag(pred_dist_samples$var[i, ]))
   }
   

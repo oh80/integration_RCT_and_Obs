@@ -48,7 +48,7 @@ chol_solve <- function(A) {
 
 renew_eta <- function(GP, eta, X, l, sig_eta, alpha_eta, beta_eta){
   # sample from proposal distribution
-  eta_new <- truncnorm::rtruncnorm(n=1, a=0, mean = eta, sd=sig_eta)
+  eta_new <- truncnorm::rtruncnorm(n=1, a=0, b=2, mean = eta, sd=sig_eta)
   
   small_mat <- 1e-05 * diag(length(GP))
   K     <- compute_kernel_mat(X, l, eta) + small_mat
@@ -116,12 +116,6 @@ renew_g <- function(X, Y, Z, l, eta, sig_R, sig_O, tau, b_O, Obs_flag){
   A <- precision_mat + chol_solve(K_g)
   B <- precision_mat %*% (Y - Z * HTE)
   
-  # A <- 1/sig * diag(n) + chol_solve(K_g)
-  # B <- (1/sig * diag(n)) %*% (Y - Z * HTE)
-  # weighted_precision_mat <- diag(W / sig)
-  # A <- weighted_precision_mat + chol_solve(K_g)
-  # B <- weighted_precision_mat %*% (Y - Z * HTE)
-  
   g <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
   return(g)
@@ -138,12 +132,8 @@ renew_tau <- function(X, Y, Z, l, eta, sig_R, sig_O, g, b_O, Obs_flag){
   b <- rep(0, length(Y))
   b[Obs_flag] <- b[Obs_flag] + b_O
   
-  Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
+  Z_left  <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
-  
-  # weighted_precision_mat <- diag(W / sig)
-  # A <- Z_left * weighted_precision_mat * Z_right + chol_solve(K_tau)
-  # B <- as.matrix(Z_left * weighted_precision_mat) %*% (Y - g - Z * b)
   
   precision_vec <- rep(1/sig_R, n)
   precision_vec[Obs_flag] <- 1/sig_O
@@ -151,8 +141,6 @@ renew_tau <- function(X, Y, Z, l, eta, sig_R, sig_O, g, b_O, Obs_flag){
   A <- Z_left * precision_mat * Z_right + chol_solve(K_tau)
   B <- as.matrix(Z_left * precision_mat) %*% (Y - g - Z * b)
   
-  # A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
-  # B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * b)
   
   tau <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 
     as.vector()
@@ -256,7 +244,8 @@ renew_b <- function(X, Y, Z, l, eta, sig, g, tau){
   Z_left <- matrix(Z, nrow = n, ncol = n, byrow = TRUE)
   Z_right <- matrix(Z, nrow = n, ncol = n, byrow = FALSE)
   
-  A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau)
+  shrink_penalty = 5
+  A <- Z_left * (1/sig * diag(n)) * Z_right + chol_solve(K_tau) + diag(shrink_penalty, n)
   B <- as.matrix(Z_left * (1/sig * diag(n))) %*% (Y - g - Z * tau)
   
   b <- mvtnorm::rmvnorm(n=1, mean = chol_solve(A)%*%B, sigma=chol_solve(A)) |> 

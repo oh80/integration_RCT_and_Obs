@@ -8,7 +8,7 @@ main <- function(){
   location  <- "01_data"     # 01_data or 02_build
   
   seed    <- 42
-  iter    <- 500
+  iter    <- 100
   burn_in <- 200
   desctiption <- ""
   
@@ -181,7 +181,7 @@ run_MCMC <- function(X, Y, Z, ID, iter, burn_in, step, b_O_plugin = NA){
     # b
     if(step == 1){
       eta_b <- renew_eta(b_O, eta_b, X_O, l_b, sig_eta, alpha_eta, beta_eta)
-      l_b   <- renew_l_b(l_b, b_O, X_O, eta_b, sig_hyper, alpha_l, beta_l)
+      l_b   <- renew_l(l_b, b_O, X_O, eta_b, sig_hyper, alpha_l, beta_l)
       b_O   <- renew_b(X_O, Y_O, Z_O, l_b, eta_b, sig_O, g[Obs_flag], tau[Obs_flag])
     }else{
       s <- sample(seq(1,iter - burn_in), size=1)
@@ -231,8 +231,8 @@ run_MCMC <- function(X, Y, Z, ID, iter, burn_in, step, b_O_plugin = NA){
 
 
 compute_b_O_pred <- function(samples, X_in, X, ID_in, ID){
-  X_in <- X_in[ID_in == "O"] |> as.matrix()
-  X    <- X[ID == "O"] |> as.matrix()
+  X_in <- X_in[ID_in == "O",,drop=FALSE] |> as.matrix()
+  X    <- X[ID == "O", , drop=FALSE] |> as.matrix()
   
   b_O_in_sample <- samples$b_O  |> as.matrix()
   l_b_sample    <- samples$l_b  
